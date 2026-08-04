@@ -201,38 +201,52 @@ resource "aws_s3_bucket_replication_configuration" "example" {
 }
 
 
-# Added to satisfy remaining Checkov demo checks
-
-resource "aws_s3_bucket_notification" "log_bucket_notification" {
+resource "aws_s3_bucket_notification" "log_bucket" {
   bucket = aws_s3_bucket.log_bucket.id
   eventbridge = true
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "replica" {
+resource "aws_s3_bucket" "replica_log_bucket" {
   provider = aws.replica
-  bucket = aws_s3_bucket.replica.id
-  rule {
-    id="cleanup"
-    status="Enabled"
-    expiration { days = 365 }
-    abort_incomplete_multipart_upload { days_after_initiation = 7 }
-  }
+  bucket = "my-demo-bucket-12345-replica-logs"
 }
 
-resource "aws_s3_bucket" "replica_logs" {
-  provider = aws.replica
-  bucket = "my-demo-bucket-12345-replica-logs-demo"
+resource "aws_s3_bucket_public_access_block" "replica_log_bucket" {
+  provider=aws.replica
+  bucket=aws_s3_bucket.replica_log_bucket.id
+  block_public_acls=true
+  block_public_policy=true
+  ignore_public_acls=true
+  restrict_public_buckets=true
 }
 
-resource "aws_s3_bucket_logging" "replica_logging" {
-  provider = aws.replica
-  bucket = aws_s3_bucket.replica.id
-  target_bucket = aws_s3_bucket.replica_logs.id
-  target_prefix = "logs/"
+resource "aws_s3_bucket_versioning" "replica_log_bucket" {
+  provider=aws.replica
+  bucket=aws_s3_bucket.replica_log_bucket.id
+  versioning_configuration { status="Enabled" }
 }
 
-resource "aws_s3_bucket_notification" "replica_notification" {
-  provider = aws.replica
-  bucket = aws_s3_bucket.replica.id
-  eventbridge = true
+resource "aws_s3_bucket_server_side_encryption_configuration" "replica_log_bucket" {
+ provider=aws.replica
+ bucket=aws_s3_bucket.replica_log_bucket.id
+ rule {
+   apply_server_side_encryption_by_default {
+     sse_algorithm="aws:kms"
+     kms_master_key_id=aws_kms_key.s3_key_replica.arn
+   }
+   bucket_key_enabled=true
+ }
+}
+
+resource "aws_s3_bucket_logging" "replica" {
+ provider=aws.replica
+ bucket=aws_s3_bucket.replica.id
+ target_bucket=aws_s3_bucket.replica_log_bucket.id
+ target_prefix="logs/"
+}
+
+resource "aws_s3_bucket_notification" "replica" {
+ provider=aws.replica
+ bucket=aws_s3_bucket.replica.id
+ eventbridge=true
 }
