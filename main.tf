@@ -18,7 +18,7 @@ provider "aws" {
 data "aws_ami" "amazon_linux" {
   most_recent = true
 
-  owners = ["amazon"]
+  owners = ["alicloud"]
 
   filter {
     name   = "name"
